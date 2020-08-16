@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(robogirls)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(include)
 
-#add_subdirectory(lib)
 add_subdirectory(include)
 add_subdirectory(src)
 
@@ -66,10 +65,39 @@ else()
     
 endif()
 
-target_include_directories(VNgine PUBLIC ${RAZOR_CORE_LIB_INCLUDES})
-target_link_libraries(VNgine PUBLIC ${RAZOR_CORE_LIBRARIES})
+# GLFW
+# Disable GLFW docs, tests and examples
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory(lib/glfw)
+target_include_directories(VNgine PUBLIC lib/glfw/include)
+target_link_libraries(VNgine glfw)
+
+# GLEW
+option (glew-cmake_BUILD_SHARED "" OFF)
+option(glew-cmake_BUILD_MULTI_CONTEXT "" OFF)
+add_subdirectory(lib/glew)
+target_include_directories(VNgine PUBLIC lib/glew/include)
+target_link_libraries(VNgine libglew_static)
+
+# GLM
+target_include_directories(VNgine PUBLIC lib/glm)
+
+#Extend compiler/OS specific libs
+if (WIN32)
+  target_link_libraries(VNgine
+    opengl32
+    glu32
+  )
+else ()
+  target_link_libraries(VNgine
+    OpenGL
+    GLX
+    stdc++fs
+  )
+endif ()
 
 target_link_libraries(game VNgine)
 
 target_link_libraries(test VNgine)
-
