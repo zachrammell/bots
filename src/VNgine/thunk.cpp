@@ -10,12 +10,12 @@
 namespace VNgine
 {
 
-void* volatile ThunkBase::bytecode_heap = nullptr;
-std::mutex ThunkBase::heap_mutex;
+void* volatile ThunkHeap::bytecode_heap = nullptr;
+std::mutex ThunkHeap::heap_mutex;
 
-ThunkBase::ThunkBase(void* instance, void* function)
+ThunkHeap::ThunkHeap()
 {
-	/* This part will only run once. It is a mechanism to create a heap in a thread-safe way. */
+	/* This code will only run once. It is a mechanism to create a heap in a thread-safe way. */
 
 	// Double checked locking, guaranteed by Acquire/Release-semantics in Microsoft's
 	// volatile-implementation.
@@ -33,47 +33,24 @@ ThunkBase::ThunkBase(void* instance, void* function)
 
 			// Schedule the heap to be destroyed when the application terminates.
 			// Until then, it will manage its own size.
-			atexit(cleanupHeap);
+			atexit(cleanup);
 		}
 	}
-
-	/* This part will run every time. It just allocates the bytecode object into executable memory. */
-
-	// Grab the bytecode-sized chunk of executable memory from the heap
-	bytecode_ = static_cast<Bytecode*>(HeapAlloc(bytecode_heap, 0, sizeof(Bytecode)));
-	if (!bytecode_)
-	{
-		assert(!"Failed to allocate bytecode on heap.");
-	}
-	// Use placement new to construct the bytecode in the allocated executable heap memory
-	new (bytecode_) Bytecode{ instance, function };
 }
 
-ThunkBase::~ThunkBase()
+void* ThunkHeap::alloc(std::size_t size)
 {
-	// Explicitly call dtor because it was allocated with placement new
-	bytecode_->~Bytecode();
-	// Release the executable memory it was placed in
-	HeapFree(bytecode_heap, 0, bytecode_);
+  return HeapAlloc(bytecode_heap, 0, size);
 }
 
-ThunkBase::Bytecode* ThunkBase::getBytecode() const
+void ThunkHeap::dealloc(void* mem)
 {
-	return bytecode_;
+  HeapFree(bytecode_heap, 0, mem);
 }
 
-void ThunkBase::flushInstructionCache() const
-{
-	// Flush instruction cache. May be required on some architectures which
-  // don't feature strong cache coherency guarantees, though not on neither
-  // x86, x64 nor AMD64.
-	FlushInstructionCache(GetCurrentProcess(), bytecode_, sizeof(Bytecode));
-}
-
-void ThunkBase::cleanupHeap()
+void ThunkHeap::cleanup()
 {
 	HeapDestroy(bytecode_heap);
 }
-
 
 }
