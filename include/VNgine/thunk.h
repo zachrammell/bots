@@ -22,12 +22,10 @@ protected:
     std::uint8_t mov_rax[2];                  // store the pointer to member function in RAX
     void* function;                           // it may actually be a pointer to vtable but it will still work
 
-    std::uint8_t mov_r10_qword_ptr_rsp[4];    // store the caller's return address
-    std::uint8_t sub_rsp_8[4];                // add space to the stack
-    std::uint8_t mov_qword_ptr_rsp_r10[4];    // put the return address back on the top of the stack
-    
-    std::uint8_t mov_qword_ptr_rsp40_r9d[5];  // spill the argument from R9 onto the stack, after the shadow space
-                                              // but before other arguments
+    std::uint8_t push_qword_ptr_rsp40[4];     // copy the first spilled argument to the stack
+    std::uint8_t push_r9[2];                  // spill the argument from R9 onto the stack
+
+    std::uint8_t sub_rsp_32[4];               // create the shadow space for the member callback
 
     std::uint8_t mov_r9_r8[3];                // shift the arguments from [RCX, RDX, R8] to [RDX, R8, R9]
     std::uint8_t mov_r8_rdx[3];               // to make room for the `this` ptr in RCX
@@ -36,7 +34,10 @@ protected:
     std::uint8_t mov_rcx[2];                  // store the `this` ptr in RCX
     void* this_ptr;
 
-    std::uint8_t rex_jmp_rax[3];              // jump to the address in RAX (member function) and start executing
+    std::uint8_t call_rax[2];                 // execute the member function and allow it to return back here
+    std::uint8_t add_rsp_48[4];               // clean up the shadow space and the space for the spilled arguments
+    std::uint8_t ret[1];
+    //std::uint8_t rex_jmp_rax[3];              // jump to the address in RAX (member function) and start executing
 
     std::uint8_t int_3[9];                    // just a bunch of interrupts to stop in case something goes wrong
 #pragma pack(pop)
@@ -47,11 +48,10 @@ protected:
       mov_rax{ 0x48, 0xB8 },                                       // mov rax, function
       function{ function },
 
-      mov_r10_qword_ptr_rsp{ 0x4C, 0x8B, 0x14, 0x24 },             // mov r10, qword ptr[rsp]
-      sub_rsp_8{ 0x48, 0x83, 0xEC, 0x08 },                         // sub rsp, 8
-      mov_qword_ptr_rsp_r10{ 0x4C, 0x89, 0x14, 0x24 },             // mov qword ptr[rsp], r10
+      push_qword_ptr_rsp40{ 0xFF, 0x74, 0x24, 0x28 },              // push qword ptr[rsp + 40]
+      push_r9{ 0x41, 0x51 },                                       // push r9
 
-      mov_qword_ptr_rsp40_r9d{ 0x4C, 0x89, 0x4C, 0x24, 0x28 },     // mov qword ptr[rsp + 40], r9
+      sub_rsp_32{ 0x48, 0x83, 0xEC, 0x20 },                        // sub rsp, 32
 
       mov_r9_r8{ 0x4D, 0x89, 0xC1 },                               // mov r9, r8
       mov_r8_rdx{ 0x49, 0x89, 0xD0 },                              // mov r8, rdx
@@ -60,7 +60,11 @@ protected:
       mov_rcx{ 0x48, 0xB9 },                                       // mov rcx, this_ptr
       this_ptr{ instance },
 
-      rex_jmp_rax{ 0x48, 0xFF, 0xE0 },                             // rex jmp rax
+      call_rax{ 0xFF, 0xD0 },                                      // call rax
+      add_rsp_48{ 0x48, 0x83, 0xC4, 0x30 },                        // add rsp, 48
+      ret{ 0xC3 },                                                 // ret
+      //rex_jmp_rax{ 0x48, 0xFF, 0xE0 },                             // rex jmp rax
+      
       int_3{ 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC }// int3 int3 int3 ...
     {}
   };
