@@ -17,6 +17,49 @@ protected:
   ~non_copyable() = default; // Protected non-virtual destructor
 };
 
+template<bool Condition, typename ValType>
+struct conditional_value;
+
+template<typename ValType>
+struct conditional_value<true, ValType>
+{
+  ValType& value;
+
+  conditional_value(ValType&& A, ValType&&)
+    : value{ A }
+  {}
+};
+
+template<typename ValType>
+struct conditional_value<false, ValType>
+{
+  ValType& value;
+
+  conditional_value(ValType&&, ValType&& B)
+    : value{ B }
+  {}
+};
+
+template<typename ValType>
+struct conditional_value<true, std::initializer_list<ValType>>
+{
+  std::initializer_list<ValType>& value;
+
+  conditional_value(std::initializer_list<ValType>&& A, std::initializer_list<ValType>&&)
+    : value{ A }
+  {}
+};
+
+template<typename ValType>
+struct conditional_value<false, std::initializer_list<ValType>>
+{
+  std::initializer_list<ValType>& value;
+
+  conditional_value(std::initializer_list<ValType>&&, std::initializer_list<ValType>&& B)
+    : value{ B }
+  {}
+};
+
 template<typename Enum>
 constexpr auto to_integral(Enum e) -> std::underlying_type_t<Enum>
 {
