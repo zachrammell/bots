@@ -87,45 +87,38 @@ protected:
     using u8_3 = std::uint8_t[3];
     using u8_list = std::initializer_list<std::uint8_t>;
 #pragma pack (push, 1)
-    std::enable_if_t<(ArgCount >= 1), u8_3> shift_arg1;
-    std::enable_if_t<(ArgCount >= 2), u8_3> shift_arg2;
     std::enable_if_t<(ArgCount >= 3), u8_3> shift_arg3;
+    std::enable_if_t<(ArgCount >= 2), u8_3> shift_arg2;
+    std::enable_if_t<(ArgCount >= 1), u8_3> shift_arg1;
 #pragma pack (pop)
     Bytecode_ShiftArgs()
     {
       if constexpr (ArgCount >= 1)
       {
-        u8_list& list = conditional_value<std::is_floating_point_v<ArgType<0>>, u8_list>
-        {
-          { 0x0F, 0x28, 0xC8 },   // movaps xmm1, xmm0
-          { 0x48, 0x89, 0xC2 }    // mov rdx, rax
-        }.value;
+        auto const list = (std::is_floating_point_v < ArgType<0>>) ?
+        (u8_list{ 0x0F, 0x28, 0xC8 }) :   // movaps xmm1, xmm0
+        (u8_list{ 0x48, 0x89, 0xC2 });    // mov rdx, rax
 
         std::copy(list.begin(), list.end(), shift_arg1);
       }
 
       if constexpr (ArgCount >= 2)
       {
-        u8_list& list = conditional_value<std::is_floating_point_v<ArgType<1>>, u8_list>
-        {
-          { 0x0F, 0x28, 0xD1 },   // movaps xmm2, xmm1
-          { 0x49, 0x89, 0xD0 }    // mov r8, rdx
-        }.value;
+        auto const list = (std::is_floating_point_v<ArgType<1>>) ?
+          (u8_list{ 0x0F, 0x28, 0xD1 }) :   // movaps xmm2, xmm1
+          (u8_list{ 0x49, 0x89, 0xD0 });    // mov r8, rdx
 
         std::copy(list.begin(), list.end(), shift_arg2);
       }
 
       if constexpr (ArgCount >= 3)
       {
-        u8_list& list = conditional_value<std::is_floating_point_v<ArgType<2>>, u8_list>
-        {
-          { 0x0F, 0x28, 0xDA },   // movaps xmm3, xmm2
-          { 0x4D, 0x89, 0xC1 }    // mov r8, rdx
-        }.value;
+        auto const list = (std::is_floating_point_v<ArgType<2>>) ?
+          (u8_list{ 0x0F, 0x28, 0xDA }) :   // movaps xmm3, xmm2
+          (u8_list{ 0x4D, 0x89, 0xC1 });    // mov r8, rdx
 
         std::copy(list.begin(), list.end(), shift_arg3);
       }
-
     }
   };
 
@@ -190,7 +183,7 @@ ThunkBase<Args...>::Bytecode_StackCopy::Bytecode_StackCopy(uint32_t spilled_args
     mov_rsi_rsp{ 0x48, 0x89, 0xE6 },                             // mov rsi, rsp
     add_rsi_40{ 0x48, 0x83, 0xC6, 0x28 },                        // add rsi, 40
     mov_rdi_rsp{ 0x48, 0x89, 0xE7 },                             // mov rdi, rsp
-    add_rdi{ 0x48, 0x81, 0xC7 },                                 // add_rdi, {-n * 8}
+    add_rdi{ 0x48, 0x81, 0xC7 },                                 // add rdi, {-n * 8}
     rsp_copy_offset{ (-(spilled_args * 8)) },
     mov_rcx_N{ 0x48, 0xC7, 0xC1 },                               // mov rcx, {n}
     N{ (spilled_args) },
